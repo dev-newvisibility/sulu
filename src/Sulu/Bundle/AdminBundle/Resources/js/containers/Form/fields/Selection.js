@@ -13,6 +13,7 @@ import MultiAutoComplete from '../../../containers/MultiAutoComplete';
 import {translate} from '../../../utils/Translator';
 import MultiSelectionComponent from '../../MultiSelection';
 import userStore from '../../../stores/userStore';
+import Router from '../../../services/Router';
 import selectionStyles from './selection.scss';
 import type {FieldTypeProps} from '../../../types';
 import type {SchemaOption} from '../types';
@@ -49,12 +50,16 @@ class Selection extends React.Component<Props> {
                 resource_key: resourceKey,
             },
             formInspector,
+            router,
             schemaOptions: {
                 request_parameters: {
                     value: unvalidatedRequestParameters = [],
                 } = {},
                 resource_store_properties_to_request: {
                     value: unvalidatedResourceStorePropertiesToRequest = [],
+                } = {},
+                router_attributes_to_request: {
+                    value: unvalidatedRouterAttributesToRequest = [],
                 } = {},
             },
         } = this.props;
@@ -75,10 +80,18 @@ class Selection extends React.Component<Props> {
         // $FlowFixMe: flow does not recognize that isArrayLike(value) means that value is an array
         const resourceStorePropertiesToRequest: Array | IObservableArray = unvalidatedResourceStorePropertiesToRequest;
 
+        if (!isArrayLike(unvalidatedRouterAttributesToRequest)) {
+            throw new Error('The "router_attributes_to_request" schemaOption must be an array!');
+        }
+        // $FlowFixMe: flow does not recognize that isArrayLike(value) means that value is an array
+        const routerAttributesToRequest: Array | IObservableArray = unvalidatedRouterAttributesToRequest;
+
         this.requestOptions = this.buildRequestOptions(
             requestParameters,
             resourceStorePropertiesToRequest,
-            formInspector
+            formInspector,
+            routerAttributesToRequest,
+            router
         );
 
         // update requestOptions observable if one of the "resource_store_properties_to_request" properties is changed
@@ -91,7 +104,9 @@ class Selection extends React.Component<Props> {
                 const newRequestOptions = this.buildRequestOptions(
                     requestParameters,
                     resourceStorePropertiesToRequest,
-                    formInspector
+                    formInspector,
+                    routerAttributesToRequest,
+                    router
                 );
 
                 if (!equals(this.requestOptions, newRequestOptions)) {
@@ -279,7 +294,9 @@ class Selection extends React.Component<Props> {
     buildRequestOptions(
         requestParameters: Array<SchemaOption>,
         resourceStorePropertiesToRequest: Array<SchemaOption>,
-        formInspector: FormInspector
+        formInspector: FormInspector,
+        routerAttributesToRequest: ?Array<SchemaOption>,
+        router: ?Router
     ) {
         const requestOptions = {};
 
@@ -292,6 +309,14 @@ class Selection extends React.Component<Props> {
             const propertyPath = typeof propertyName === 'string' ? propertyName : parameterName;
             requestOptions[parameterName] = toJS(formInspector.getValueByPath('/' + propertyPath));
         });
+
+        if (router) {
+            routerAttributesToRequest.forEach((attributeToRequest) => {
+                const {name: parameterName, value: attributeName} = attributeToRequest;
+                const attributeKey = typeof attributeName === 'string' ? attributeName : parameterName;
+                requestOptions[parameterName] = toJS(router.attributes[attributeKey]);
+            });
+        }
 
         return requestOptions;
     }

@@ -32,9 +32,10 @@ jest.mock('../../../../stores/MultiSelectionStore', () => jest.fn(
     })
 );
 
-jest.mock('../../../../services/Router', () => jest.fn(() => ({
-    navigate: jest.fn(),
-})));
+jest.mock('../../../../services/Router', () => jest.fn(function () {
+    this.attributes = {};
+    this.navigate = jest.fn();
+}));
 
 jest.mock('../../../List', () => jest.fn(() => null));
 
@@ -304,6 +305,15 @@ test('Should pass props with schema-options correctly to MultiSelection componen
                 },
             ],
         },
+        router_attributes_to_request: {
+            name: 'router_attributes_to_request',
+            value: [
+                {
+                    name: 'routerKey',
+                    value: 'otherAttributeKey',
+                },
+            ],
+        },
     };
 
     const locale = observable.box('en');
@@ -318,6 +328,9 @@ test('Should pass props with schema-options correctly to MultiSelection componen
     const formInspectorValues = {'/otherPropertyName': 'value-returned-by-form-inspector'};
     formInspector.getValueByPath.mockImplementation((path) => formInspectorValues[path]);
 
+    const router = new Router();
+    router.attributes.otherAttributeKey = 'value-from-router-attributes';
+
     const selection = shallow(
         <Selection
             {...fieldTypeDefaultProps}
@@ -325,6 +338,7 @@ test('Should pass props with schema-options correctly to MultiSelection componen
             fieldTypeOptions={fieldTypeOptions}
             formInspector={formInspector}
             onFinish={jest.fn()}
+            router={router}
             schemaOptions={schemaOptions}
             value={value}
         />
@@ -349,6 +363,7 @@ test('Should pass props with schema-options correctly to MultiSelection componen
             types: 'image,video',
             staticKey: 'some-static-value',
             dynamicKey: 'value-returned-by-form-inspector',
+            routerKey: 'value-from-router-attributes',
         },
     }));
 });
@@ -766,6 +781,29 @@ test('Should throw an error if "resource_store_properties_to_request" schema opt
     )).toThrowError(/"resource_store_properties_to_request"/);
 });
 
+test('Should throw an error if "router_attributes_to_request" schema option is not an array', () => {
+    const formInspector = new FormInspector(new ResourceFormStore(new ResourceStore('snippets'), 'pages'));
+    const fieldTypeOptions = {
+        default_type: 'list_overlay',
+        resource_key: 'test',
+        types: {
+            list_overlay: {},
+        },
+    };
+    const schemaOptions = {
+        router_attributes_to_request: {name: 'router_attributes_to_request', value: 'not-an-array'},
+    };
+
+    expect(() => shallow(
+        <Selection
+            {...fieldTypeDefaultProps}
+            fieldTypeOptions={fieldTypeOptions}
+            formInspector={formInspector}
+            schemaOptions={schemaOptions}
+        />
+    )).toThrowError(/"router_attributes_to_request"/);
+});
+
 test('Should throw an error if no "resource_key" option is passed in fieldOptions', () => {
     const formInspector = new FormInspector(new ResourceFormStore(new ResourceStore('snippets'), 'pages'));
 
@@ -957,6 +995,15 @@ test('Should pass correct parameters to listStore', () => {
                 },
             ],
         },
+        router_attributes_to_request: {
+            name: 'router_attributes_to_request',
+            value: [
+                {
+                    name: 'routerKey',
+                    value: 'otherAttributeKey',
+                },
+            ],
+        },
     };
 
     const locale = observable.box('en');
@@ -971,12 +1018,16 @@ test('Should pass correct parameters to listStore', () => {
     const formInspectorValues = {'/otherPropertyName': 'value-returned-by-form-inspector'};
     formInspector.getValueByPath.mockImplementation((path) => formInspectorValues[path]);
 
+    const router = new Router();
+    router.attributes.otherAttributeKey = 'value-from-router-attributes';
+
     const selection = shallow(
         <Selection
             {...fieldTypeDefaultProps}
             disabled={true}
             fieldTypeOptions={fieldTypeOptions}
             formInspector={formInspector}
+            router={router}
             schemaOptions={schemaOptions}
             value={value}
         />
@@ -989,6 +1040,7 @@ test('Should pass correct parameters to listStore', () => {
     expect(selection.instance().listStore.options).toEqual({
         staticKey: 'some-static-value',
         dynamicKey: 'value-returned-by-form-inspector',
+        routerKey: 'value-from-router-attributes',
     });
 });
 
@@ -1208,6 +1260,87 @@ test('Should update listStore when the value of a "resource_store_properties_to_
     expect(selection.instance().listStore.initialSelectionIds).toEqual([12, 14]);
 });
 
+test('Should keep router attributes when the value of a "resource_store_properties_to_request" property is changed', () => {
+    const value = [1, 6, 8];
+
+    const fieldTypeOptions = {
+        default_type: 'list',
+        resource_key: 'snippets',
+        types: {
+            list: {
+                adapter: 'table',
+                list_key: 'snippets_list',
+            },
+        },
+    };
+
+    const schemaOptions = {
+        resource_store_properties_to_request: {
+            name: 'resource_store_properties_to_request',
+            value: [
+                {
+                    name: 'dynamicKey',
+                    value: 'otherPropertyName',
+                },
+            ],
+        },
+        router_attributes_to_request: {
+            name: 'router_attributes_to_request',
+            value: [
+                {
+                    name: 'routerKey',
+                    value: 'otherAttributeKey',
+                },
+            ],
+        },
+    };
+
+    const locale = observable.box('en');
+
+    const formInspector = new FormInspector(
+        new ResourceFormStore(
+            new ResourceStore('pages', 1, {locale}),
+            'pages'
+        )
+    );
+
+    const formInspectorValues = {'/otherPropertyName': 'first-value'};
+    formInspector.getValueByPath.mockImplementation((path) => formInspectorValues[path]);
+
+    const router = new Router();
+    router.attributes.otherAttributeKey = 'value-from-router-attributes';
+
+    const selection = shallow(
+        <Selection
+            {...fieldTypeDefaultProps}
+            disabled={true}
+            fieldTypeOptions={fieldTypeOptions}
+            formInspector={formInspector}
+            router={router}
+            schemaOptions={schemaOptions}
+            value={value}
+        />
+    );
+
+    expect(formInspector.addFinishFieldHandler).toHaveBeenCalled();
+    expect(selection.instance().listStore.options).toEqual({
+        dynamicKey: 'first-value',
+        routerKey: 'value-from-router-attributes',
+    });
+
+    selection.instance().listStore.selectionIds = [12, 14];
+    formInspectorValues['/otherPropertyName'] = 'second-value';
+    const finishFieldHandler = formInspector.addFinishFieldHandler.mock.calls[0][0];
+    finishFieldHandler('/otherPropertyName');
+
+    expect(selection.instance().listStore.options).toEqual({
+        dynamicKey: 'second-value',
+        routerKey: 'value-from-router-attributes',
+    });
+    expect(selection.instance().listStore.reset).toBeCalled();
+    expect(selection.instance().listStore.initialSelectionIds).toEqual([12, 14]);
+});
+
 test('Should not call onChange and onFinish if an observable that is accessed in one of the callbacks changes', () => {
     const unrelatedObservable = observable.box(22);
     const changeSpy = jest.fn(() => {
@@ -1380,6 +1513,9 @@ test('Should pass props with schema-options type correctly to MultiAutoComplete 
     const formInspectorValues = {'/otherPropertyName': 'value-returned-by-form-inspector'};
     formInspector.getValueByPath.mockImplementation((path) => formInspectorValues[path]);
 
+    const router = new Router();
+    router.attributes.otherAttributeKey = 'value-from-router-attributes';
+
     const schemaOptions = {
         type: {
             name: 'type',
@@ -1403,6 +1539,15 @@ test('Should pass props with schema-options type correctly to MultiAutoComplete 
                 },
             ],
         },
+        router_attributes_to_request: {
+            name: 'router_attributes_to_request',
+            value: [
+                {
+                    name: 'routerKey',
+                    value: 'otherAttributeKey',
+                },
+            ],
+        },
     };
 
     const selection = shallow(
@@ -1411,6 +1556,7 @@ test('Should pass props with schema-options type correctly to MultiAutoComplete 
             disabled={true}
             fieldTypeOptions={fieldTypeOptions}
             formInspector={formInspector}
+            router={router}
             schemaOptions={schemaOptions}
             value={value}
         />
@@ -1428,6 +1574,7 @@ test('Should pass props with schema-options type correctly to MultiAutoComplete 
         options: {
             staticKey: 'some-static-value',
             dynamicKey: 'value-returned-by-form-inspector',
+            routerKey: 'value-from-router-attributes',
         },
     }));
 });
