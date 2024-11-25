@@ -32,7 +32,7 @@ jest.mock('../../../../stores/MultiSelectionStore', () => jest.fn(
     })
 );
 
-jest.mock('../../../../services/Router', () => jest.fn(function () {
+jest.mock('../../../../services/Router', () => jest.fn(function() {
     this.attributes = {};
     this.navigate = jest.fn();
 }));
@@ -1260,6 +1260,7 @@ test('Should update listStore when the value of a "resource_store_properties_to_
     expect(selection.instance().listStore.initialSelectionIds).toEqual([12, 14]);
 });
 
+// eslint-disable-next-line max-len
 test('Should keep router attributes when the value of a "resource_store_properties_to_request" property is changed', () => {
     const value = [1, 6, 8];
 

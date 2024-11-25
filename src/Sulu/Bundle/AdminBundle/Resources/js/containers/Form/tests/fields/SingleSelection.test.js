@@ -20,6 +20,7 @@ jest.mock('loglevel', () => ({
 jest.mock('../../../../containers/SingleListOverlay', () => jest.fn(() => null));
 
 jest.mock('../../../../services/Router', () => jest.fn(function() {
+    this.attributes = {};
     this.navigate = jest.fn();
 }));
 
@@ -661,6 +662,30 @@ test('Should throw an error if "resource_store_properties_to_request" schema opt
     )).toThrow('"resource_store_properties_to_request"');
 });
 
+test('Should throw an error if "router_attributes_to_request" schema option is not an array', () => {
+    const formInspector = new FormInspector(new ResourceFormStore(new ResourceStore('test'), 'test'));
+    const fieldTypeOptions = {
+        default_type: 'list_overlay',
+        resource_key: 'accounts',
+        types: {
+            list_overlay: {},
+        },
+    };
+
+    const schemaOptions = {
+        router_attributes_to_request: {name: 'router_attributes_to_request', value: 'not-an-array'},
+    };
+
+    expect(() => shallow(
+        <SingleSelection
+            {...fieldTypeDefaultProps}
+            fieldTypeOptions={fieldTypeOptions}
+            formInspector={formInspector}
+            schemaOptions={schemaOptions}
+        />
+    )).toThrow('"router_attributes_to_request"');
+});
+
 test('Throw an error if item_disabled_condition schema option is not a string', () => {
     const formInspector = new FormInspector(new ResourceFormStore(new ResourceStore('test'), 'test'));
 
@@ -832,6 +857,15 @@ test('Pass correct props with schema-options type to SingleItemSelection', () =>
                 },
             ],
         },
+        router_attributes_to_request: {
+            name: 'router_attributes_to_request',
+            value: [
+                {
+                    name: 'routerKey',
+                    value: 'otherAttributeKey',
+                },
+            ],
+        },
     };
 
     const formInspector = new FormInspector(new ResourceFormStore(new ResourceStore('test'), 'test', options));
@@ -839,12 +873,16 @@ test('Pass correct props with schema-options type to SingleItemSelection', () =>
     const formInspectorValues = {'/otherPropertyName': 'value-returned-by-form-inspector'};
     formInspector.getValueByPath.mockImplementation((path) => formInspectorValues[path]);
 
+    const router = new Router();
+    router.attributes.otherAttributeKey = 'value-from-router-attributes';
+
     const singleSelection = shallow(
         <SingleSelection
             {...fieldTypeDefaultProps}
             disabled={true}
             fieldTypeOptions={fieldTypeOptions}
             formInspector={formInspector}
+            router={router}
             schemaOptions={schemaOptions}
             value={value}
         />
@@ -859,6 +897,7 @@ test('Pass correct props with schema-options type to SingleItemSelection', () =>
             'ghost-content': true,
             rootKey: 'testRootKey',
             dynamicKey: 'value-returned-by-form-inspector',
+            routerKey: 'value-from-router-attributes',
         },
         disabled: true,
         disabledIds: [],
@@ -872,6 +911,7 @@ test('Pass correct props with schema-options type to SingleItemSelection', () =>
             types: 'test',
             rootKey: 'testRootKey',
             dynamicKey: 'value-returned-by-form-inspector',
+            routerKey: 'value-from-router-attributes',
         },
         overlayTitle: 'sulu_contact.overlay_title',
         resourceKey: 'accounts',
@@ -942,6 +982,88 @@ test('Should update props of SingleItemSelection when value of "resource_store_p
     });
     expect(singleSelection.find(SingleSelectionComponent).props().listOptions).toEqual({
         dynamicKey: 'second-value',
+    });
+});
+
+test('Should keep router attributes when value of "resource_store_properties_to_request" property is changed', () => {
+    const value = 3;
+
+    const fieldTypeOptions = {
+        default_type: 'list_overlay',
+        resource_key: 'accounts',
+        types: {
+            list_overlay: {
+                adapter: 'table',
+                display_properties: ['name'],
+                empty_text: 'sulu_contact.nothing',
+                icon: 'su-account',
+                overlay_title: 'sulu_contact.overlay_title',
+            },
+        },
+    };
+
+    const schemaOptions = {
+        resource_store_properties_to_request: {
+            name: 'resource_store_properties_to_request',
+            value: [
+                {
+                    name: 'dynamicKey',
+                    value: 'otherPropertyName',
+                },
+            ],
+        },
+        router_attributes_to_request: {
+            name: 'router_attributes_to_request',
+            value: [
+                {
+                    name: 'routerKey',
+                    value: 'otherAttributeKey',
+                },
+            ],
+        },
+    };
+
+    const formInspector = new FormInspector(new ResourceFormStore(new ResourceStore('test'), 'test', {}));
+
+    const formInspectorValues = {'/otherPropertyName': 'first-value'};
+    formInspector.getValueByPath.mockImplementation((path) => formInspectorValues[path]);
+
+    const router = new Router();
+    router.attributes.otherAttributeKey = 'value-from-router-attributes';
+
+    const singleSelection = shallow(
+        <SingleSelection
+            {...fieldTypeDefaultProps}
+            disabled={true}
+            fieldTypeOptions={fieldTypeOptions}
+            formInspector={formInspector}
+            router={router}
+            schemaOptions={schemaOptions}
+            value={value}
+        />
+    );
+
+    expect(formInspector.addFinishFieldHandler).toHaveBeenCalled();
+    expect(singleSelection.find(SingleSelectionComponent).props().detailOptions).toEqual({
+        dynamicKey: 'first-value',
+        routerKey: 'value-from-router-attributes',
+    });
+    expect(singleSelection.find(SingleSelectionComponent).props().listOptions).toEqual({
+        dynamicKey: 'first-value',
+        routerKey: 'value-from-router-attributes',
+    });
+
+    formInspectorValues['/otherPropertyName'] = 'second-value';
+    const finishFieldHandler = formInspector.addFinishFieldHandler.mock.calls[0][0];
+    finishFieldHandler('/otherPropertyName');
+
+    expect(singleSelection.find(SingleSelectionComponent).props().detailOptions).toEqual({
+        dynamicKey: 'second-value',
+        routerKey: 'value-from-router-attributes',
+    });
+    expect(singleSelection.find(SingleSelectionComponent).props().listOptions).toEqual({
+        dynamicKey: 'second-value',
+        routerKey: 'value-from-router-attributes',
     });
 });
 
